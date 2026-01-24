@@ -1,0 +1,53 @@
+# claude code
+function claude-code() {
+  local git_root
+  local -a extra_mounts=()
+  local -a pass_args=()
+
+  # Parse arguments - extract --add-dir and pass through the rest
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --add-dir)
+        if [[ -n "$2" ]]; then
+          extra_mounts+=("$2")
+          shift 2
+        else
+          echo "Error: --add-dir requires a path argument" >&2
+          return 1
+        fi
+        ;;
+      *)
+        pass_args+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  # Find git root or fall back to cwd
+  git_root=$(git rev-parse --show-toplevel 2>/dev/null)
+  local mount_path="${git_root:-$(pwd)}"
+  local work_dir="$(pwd)"
+
+  # Build volume mount arguments
+  local -a volume_args=(
+    -v "${mount_path}":"${mount_path}":rw
+    -v "${HOME}/.claude:${HOME}/.claude:rw"
+    -v "${HOME}/.claude.json:${HOME}/.claude.json:rw"
+    -v "${HOME}/CLAUDE.md:${HOME}/CLAUDE.md:rw"
+    -v "/var/run/docker.sock:/var/run/docker.sock"
+  )
+
+  # Add extra mounts
+  for dir in "${extra_mounts[@]}"; do
+    volume_args+=(-v "$dir":"$dir":rw)
+  done
+
+  docker run --rm -it \
+    "${volume_args[@]}" \
+    -w "${work_dir}" \
+    -e USER="${USER}" \
+    -e HOME="${HOME}" \
+    --group-add "$(getent group docker | cut -d: -f3)" \
+    --user "${UID}:${UID}" \
+    claude-code claude --dangerously-skip-permissions "${pass_args[@]}"
+}
