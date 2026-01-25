@@ -35,7 +35,14 @@ function claude-code() {
     -v "${HOME}/.claude.json:${HOME}/.claude.json:rw"
     -v "${HOME}/CLAUDE.md:${HOME}/CLAUDE.md:rw"
     -v "/var/run/docker.sock:/var/run/docker.sock"
+    -v "${HOME}/.gitconfig:${HOME}/.gitconfig:ro"
+    -v "${HOME}/.ssh:${HOME}/.ssh:ro"
   )
+
+  # Add git credentials if they exist
+  if [[ -f "${HOME}/.git-credentials" ]]; then
+    volume_args+=(-v "${HOME}/.git-credentials:${HOME}/.git-credentials:ro")
+  fi
 
   # Add extra mounts
   for dir in "${extra_mounts[@]}"; do
