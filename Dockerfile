@@ -6,8 +6,11 @@ RUN apt-get update -qq && \
       jq less tree && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Claude CLI globally — always pulls latest published version
-RUN npm install -g @anthropic-ai/claude-code && npm cache clean --force
+# Install Claude CLI native binary to /usr/local/bin
+ARG CLAUDE_VERSION
+RUN curl -fsSL https://claude.ai/install.sh | bash -s "${CLAUDE_VERSION}" && \
+    mv ~/.local/bin/claude /usr/local/bin/claude && \
+    chmod 755 /usr/local/bin/claude
 
 RUN usermod -u 1001 gitpod \
   && groupmod -g 1001 gitpod \
