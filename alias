@@ -28,6 +28,15 @@ function claude-code() {
   local mount_path="${git_root:-$(pwd)}"
   local work_dir="$(pwd)"
 
+  # If in a worktree, also mount the main repo root
+  local git_common_dir
+  git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null)
+  if [[ -n "$git_common_dir" && "$git_common_dir" != ".git" && "$git_common_dir" != "${mount_path}/.git" ]]; then
+    local main_repo_root
+    main_repo_root=$(cd "${mount_path}" && realpath "${git_common_dir}/..")
+    extra_mounts+=("${main_repo_root}")
+  fi
+
   # Build volume mount arguments
   local -a volume_args=(
     -v "${mount_path}":"${mount_path}":rw
