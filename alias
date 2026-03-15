@@ -1,10 +1,12 @@
 # claude code
 function claude-code() {
-  local git_root
+  local work_dir
   local -a extra_mounts=()
   local -a pass_args=()
 
-  # Parse arguments - extract --add-dir and pass through the rest
+  work_dir="$(pwd)"
+
+  # Parse arguments - extract mount flags and pass through the rest
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --add-dir)
@@ -16,6 +18,22 @@ function claude-code() {
           return 1
         fi
         ;;
+      --add-dirs)
+        if [[ -n "$2" ]]; then
+          local dir
+          local -a parsed_dirs=()
+          IFS=, read -r -a parsed_dirs <<< "$2"
+          for dir in "${parsed_dirs[@]}"; do
+            if [[ -n "$dir" ]]; then
+              extra_mounts+=("$dir")
+            fi
+          done
+          shift 2
+        else
+          echo "Error: --add-dirs requires a comma-separated path argument" >&2
+          return 1
+        fi
+        ;;
       *)
         pass_args+=("$1")
         shift
@@ -23,23 +41,8 @@ function claude-code() {
     esac
   done
 
-  # Find git root or fall back to cwd
-  git_root=$(git rev-parse --show-toplevel 2>/dev/null)
-  local mount_path="${git_root:-$(pwd)}"
-  local work_dir="$(pwd)"
-
-  # If in a worktree, also mount the main repo root
-  local git_common_dir
-  git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null)
-  if [[ -n "$git_common_dir" && "$git_common_dir" != ".git" && "$git_common_dir" != "${mount_path}/.git" ]]; then
-    local main_repo_root
-    main_repo_root=$(cd "${mount_path}" && realpath "${git_common_dir}/..")
-    extra_mounts+=("${main_repo_root}")
-  fi
-
   # Build volume mount arguments
   local -a volume_args=(
-    -v "${mount_path}":"${mount_path}":rw
     -v "${HOME}/.claude:${HOME}/.claude:rw"
     -v "${HOME}/.claude.json:${HOME}/.claude.json:rw"
     -v "${HOME}/CLAUDE.md:${HOME}/CLAUDE.md:rw"
